@@ -1,0 +1,570 @@
+;6. Ingrese un texto e imprima la cantidad de letras consonantes y de vocales utilizadas.
+
+.8086
+.model small
+.stack 100h
+
+.data
+
+texto db 255 dup (24h), 0dh, 0ah, 24h
+consigna db "6. Ingrese un texto e imprima la cantidad de letras consonantes y de vocales utilizadas."
+salto db 0dh, 0ah, 24h
+vocal db "VOCALES: " , 0dh, 0ah, 24h
+conso db "CONSONANTES: ", 0dh, 0ah, 24h
+cantv db 0
+cantc db 0
+VocalesAscii db "000",0dh,0ah,24h
+ConsonantesAscii db "000",0dh,0ah,24h
+
+.code
+
+main proc
+
+mov ax, @data
+mov ds, ax
+
+mov ah, 9
+mov dx, offset consigna
+int 21h
+
+mov ah, 9
+mov dx, offset salto
+int 21h
+
+
+mov bx, 0
+
+
+;CAJA CARGA
+carga:
+mov ah, 1
+int 21h
+cmp al, 0dh
+je afuera
+mov texto[bx], al 
+jmp noesp
+
+prox:
+inc bx
+jmp carga
+
+noesp:
+cmp texto[bx], 20h
+je prox
+jmp comparativa
+
+comparativa:
+cmp texto[bx], 'a'
+je masvocal
+
+cmp texto[bx], 'e'
+je masvocal
+
+cmp texto[bx], 'i'
+je masvocal
+
+cmp texto[bx], 'o'
+je masvocal
+
+cmp texto[bx], 'u'
+je masvocal
+
+jmp masconso
+
+masvocal:
+inc cantv
+jmp prox
+
+masconso:
+inc cantc
+jmp prox
+
+afuera:
+
+;REGTOASCII VOCALES
+		xor ah, ah
+		mov al, cantv
+		mov cl, 10
+		div cl 
+		add ah, 30h
+		mov VocalesAscii[2],ah 
+		xor ah, ah
+		div cl 
+		add ah, 30h
+		mov VocalesAscii[1],ah
+		add al, 30h
+		mov VocalesAscii[0],al
+
+		;REGTOASCII ConSONANTES
+		xor ah, ah
+		mov al, cantc
+		mov cl, 10
+		div cl 
+		add ah, 30h
+		mov ConsonantesAscii[2],ah 
+		xor ah, ah
+		div cl 
+		add ah, 30h
+		mov ConsonantesAscii[1],ah
+		add al, 30h
+		mov ConsonantesAscii[0],al
+
+		lea dx, salto
+		mov ah, 9
+		int 21h
+
+		lea dx, VocalesAscii
+		mov ah, 9
+		int 21h
+
+		lea dx, ConsonantesAscii
+		mov ah, 9
+		int 21h
+
+mov ax, 4c00h
+int 21h
+main endp
+end
+
+
+-------------------------------------------------------------------------------
+;IP FUNCIONES BASICO
+.8086
+.model small
+.stack 100h
+
+.data
+	dirIpF  db 192,168,3,5 ;FUERA DE RANGO
+	dirIp   db 192,168,2,5 ;DENTRO DEL RANGO
+	masc 	db 255,255,255,0 
+	red     db 192,168,2,0
+	rangoMal db "no esta en el rango",0dh, 0ah, 24h
+	rangoBien db "esta en el rango",0dh, 0ah, 24h
+
+ .code
+
+	main proc
+		mov ax, @data
+		mov ds, ax
+
+		lea bx, dirIpF
+		lea si, masc
+		lea di, red
+		call mascara
+	
+		cmp al, 0
+		jne fue
+
+		inc bx
+		inc si
+		inc di
+		call mascara
+		
+		cmp al, 0
+		jne fue
+		
+		inc bx
+		inc si
+		inc di
+		call mascara
+
+		cmp al, 0
+		jne fue
+
+		mov ah, 9 
+		lea dx, rangoBien
+		int 21h
+		jmp fin
+fue:
+		mov ah, 9
+		lea dx, rangoMal
+		int 21h
+
+fin:
+		mov ax, 4c00h
+		int 21h
+
+	main endp
+
+	mascara proc
+
+		mov al, byte ptr [bx]
+		mov ah, byte ptr [si]
+		and al, ah
+		cmp al, byte ptr [di]
+		je NoPasoNada
+		mov al, 1
+		jmp finalFuncion
+		NoPasoNada:
+		mov al,0
+	finalFuncion:
+
+		ret
+ 	mascara endp
+end
+
+----------------------------------------------------------------------------------------------------------
+;MAYUSCULIZA CUENTA Y ORDENA
+
+.8086
+.model small
+.stack 100h
+.data
+	texto db "esto es un texto mas interesante :)",0dh,0ah,24h
+	letras db "aymt",24h
+	salto db 0dh,0ah
+	posiciones db 255 dup (24h)
+	var db "000",0dh,0ah,24h
+.code
+	main proc
+		mov ax, @data
+		mov ds, ax
+
+		lea bx, texto
+		lea si, letras
+		lea di, posiciones
+		mov cx, 1
+
+prox:	cmp byte ptr[bx],24h
+		je finTexto
+		mov al, byte ptr [si]
+		cmp byte ptr [bx], al
+		je Mayus
+sigue:	inc bx
+		inc cx
+		jmp prox
+finTexto:
+		inc si
+		cmp byte ptr [si], 24h
+		je fin
+		lea bx, texto
+		mov cx, 1
+		jmp prox
+Mayus:
+		sub byte ptr [bx], 20h
+		mov byte ptr [di],cl
+		inc di
+		jmp sigue
+fin:
+		mov ah, 9
+		mov dx, offset texto
+		int 21h
+
+		lea di, posiciones
+		call ordenaVec
+		lea di, posiciones
+
+imprimePosiciones:
+		mov dl, [di]
+		cmp dl, 24h
+		je chau
+		lea bx, var
+		call regToAscii
+		mov ah, 9
+		mov dx, offset var
+		int 21h
+		inc di
+		jmp imprimePosiciones
+
+chau:
+		mov ax, 4c00h
+		int 21h
+	main endp
+
+
+regToAscii proc
+
+		push ax
+		push dx 
+		push cx
+
+		mov al, dl
+		mov byte ptr[bx], 30h
+		mov byte ptr[bx+1], 30h
+		mov byte ptr[bx+2], 30h
+
+		;CONVERSION DE REG A ASCII
+
+		xor ah, ah ; es una forma cheta de hacer mov ah,0
+		mov cl, 10
+		div cl
+		add [bx+2],ah ;GUARDO EL RESTO QUE ES LA UNIDAD EN LA VARIABLE
+		xor ah, ah
+		div cl
+		add [bx+1],ah ;GUARDO EL RESTO QUE ES LA DECENA EN LA VARIABle	
+		xor ah, ah
+		div cl
+		add [bx],ah ;GUARDO EL RESTO QUE ES LA CENTENA EN LA VARIABle
+
+		pop cx
+		pop dx
+		pop ax
+
+		ret
+
+regToAscii endp
+
+ordenaVec proc
+	push ax
+	push si
+	push di
+	push bx
+
+	mov si, 0
+	mov bx, di
+
+burbuja:
+	cmp byte ptr[bx+si], 24h
+	je masPosicion
+	mov al, byte ptr[bx+si]
+	cmp byte ptr [bx], al
+	jg cambio
+otroNro:
+	inc si
+	jmp burbuja
+
+masPosicion:
+	inc bx
+	mov si, 0
+	cmp byte ptr [bx], 24h
+	je finOrd
+	jmp burbuja
+
+cambio:
+	mov ah, byte ptr[bx]
+	mov byte ptr [bx+si], ah
+	mov byte ptr [bx], al
+	jmp otroNro
+
+finord:
+	pop bx
+	pop di
+	pop si
+	pop ax
+	ret	
+ordenaVec endp
+
+end
+
+------------------------------------------------------------------------------------------------
+
+;Consigna:
+;Realizar un programa en assembler que lea texto de hasta 255 caracteres 
+;y cuente la cantidad de vocales (sin diferenciar entre ellas), la cantidad de puntos 
+;y comas que tenga el texto, imprima las 3 cantidades y luego la suma de las mismas. 
+;El programa debe indicar un mensaje de error cuando la suma supere un byte. 
+
+.8086
+.model small
+.stack 100h
+.data
+
+; CARTELERIA
+
+	Bienvenida db "Este es un programa re util que cuenta vocales, puntos , y comas",0dh ,0ah
+			   db "Ingrese un texto de hasta 255 caracteres",0dh , 0ah, " y presione Intro para realizar el c lculo",0dh,0ah,24h
+
+
+	texto db 255 dup (24h)
+	puntos 	db 0
+	comas 	db 0
+	vocales db 0
+	suma 	db 0
+
+	cantPuntosC db "la Cantidad de puntos es: "
+	cantPuntos db "000", 0dh, 0ah, 24h
+	cantComasC db "la Cantidad de comas es: "
+	cantComas db "000", 0dh, 0ah, 24h
+	cantVocalesC db "la Cantidad de Vocales es: "
+	cantVocales db "000", 0dh, 0ah, 24h
+
+	cantSumaC db "La suma de las 3 cantidades es: "
+	cantSuma db "000", 0dh, 0ah, 24h
+	
+	cartelErrorSuma db "la suma de las 3 cantidades fu‚ mayor a 255"
+
+	salto db 0dh, 0ah, 24h
+
+.code
+
+	main proc
+		mov ax, @data
+		mov ds, ax
+
+		mov ah, 9
+		lea dx,Bienvenida
+		int 21h
+
+
+
+		;CAJA DE CARGA
+		mov bx, offset texto
+	carga:
+			mov ah, 1
+			int 21h
+			cmp al, 0dh
+			je finCarga
+			mov byte ptr [bx], al
+			inc bx
+			jmp carga
+
+		;FIN CAJA DE CARGA
+
+finCarga:
+		
+		;RECORRE Y CUENTA
+		lea bx, texto
+arriba:
+		cmp byte ptr [bx], 24h
+		je saltoSuma
+		cmp byte ptr [bx], '.'
+		je esPunto
+		cmp byte ptr [bx], ','
+		je esComa
+		cmp byte ptr [bx], 'a'
+		je esVocal
+		cmp byte ptr [bx], 'e'
+		je esVocal
+		cmp byte ptr [bx], 'i'
+		je esVocal
+		cmp byte ptr [bx], 'o'
+		je esVocal
+		cmp byte ptr [bx], 'u'
+		je esVocal
+		cmp byte ptr [bx], 'A'
+		je esVocal
+		cmp byte ptr [bx], 'E'
+		je esVocal
+		cmp byte ptr [bx], 'I'
+		je esVocal
+		cmp byte ptr [bx], 'O'
+		je esVocal
+		cmp byte ptr [bx], 'U'
+		je esVocal
+cont:	inc bx
+		jmp arriba
+
+esPunto:
+		;inc puntos
+		mov si , offset puntos
+		inc byte ptr [si]
+		jmp cont
+esComa:
+		mov si , offset comas
+		inc byte ptr [si]
+		jmp cont
+esVocal:
+		mov si , offset vocales
+		inc byte ptr [si]
+		jmp cont
+
+		;FIN RECORRE Y CUENTA
+
+
+saltoSuma:
+		mov al, puntos
+		mov ah, comas 
+		add al, ah
+		mov ah, vocales
+		add al, ah
+		cmp al, 255
+		ja errorSuma
+		mov suma, al
+		jmp convierte
+
+errorSuma:	
+		mov ah,9
+		mov dx, offset cartelErrorSuma
+		int 21h
+		jmp fin
+
+
+convierte:
+		;CONVERSION DE REG A ASCII PUNTOS
+		mov al, puntos
+		lea bx, cantPuntos
+		xor ah, ah ; es una forma cheta de hacer mov ah,0
+		mov cl, 10
+		div cl
+		add [bx+2],ah ;GUARDO EL RESTO QUE ES LA UNIDAD EN LA VARIABLE
+		xor ah, ah
+		div cl
+		add [bx+1],ah ;GUARDO EL RESTO QUE ES LA DECENA EN LA VARIABle	
+		xor ah, ah
+		div cl
+		add [bx],ah ;GUARDO EL RESTO QUE ES LA CENTENA EN LA VARIABle
+		;FIN CONVERSION
+
+		;CONVERSION DE REG A ASCII COMAS
+		mov al, comas
+		lea bx, cantComas
+		xor ah, ah ; es una forma cheta de hacer mov ah,0
+		mov cl, 10
+		div cl
+		add [bx+2],ah ;GUARDO EL RESTO QUE ES LA UNIDAD EN LA VARIABLE
+		xor ah, ah
+		div cl
+		add [bx+1],ah ;GUARDO EL RESTO QUE ES LA DECENA EN LA VARIABle	
+		xor ah, ah
+		div cl
+		add [bx],ah ;GUARDO EL RESTO QUE ES LA CENTENA EN LA VARIABle
+		;FIN CONVERSION
+
+		;CONVERSION DE REG A ASCII PUNTOS
+		mov al, vocales
+		lea bx, cantVocales
+		xor ah, ah ; es una forma cheta de hacer mov ah,0
+		mov cl, 10
+		div cl
+		add [bx+2],ah ;GUARDO EL RESTO QUE ES LA UNIDAD EN LA VARIABLE
+		xor ah, ah
+		div cl
+		add [bx+1],ah ;GUARDO EL RESTO QUE ES LA DECENA EN LA VARIABle	
+		xor ah, ah
+		div cl
+		add [bx],ah ;GUARDO EL RESTO QUE ES LA CENTENA EN LA VARIABle
+		;FIN CONVERSION
+
+		;CONVERSION DE REG A ASCII PUNTOS
+		mov al, suma
+		lea bx, cantSuma
+		xor ah, ah ; es una forma cheta de hacer mov ah,0
+		mov cl, 10
+		div cl
+		add [bx+2],ah ;GUARDO EL RESTO QUE ES LA UNIDAD EN LA VARIABLE
+		xor ah, ah
+		div cl
+		add [bx+1],ah ;GUARDO EL RESTO QUE ES LA DECENA EN LA VARIABle	
+		xor ah, ah
+		div cl
+		add [bx],ah ;GUARDO EL RESTO QUE ES LA CENTENA EN LA VARIABle
+		;FIN CONVERSION
+
+		;IMPRESION
+
+			mov ah, 9 
+			lea dx, salto
+			int 21h
+
+			mov ah, 9 
+			lea dx, cantComasC
+			int 21h
+
+			mov ah, 9 
+			lea dx, cantPuntosC
+			int 21h
+
+			mov ah, 9 
+			lea dx, cantVocalesC
+			int 21h
+
+
+			mov ah, 9 
+			lea dx, cantSumaC
+			int 21h
+fin:			
+		mov ax, 4c00h
+		int 21h
+
+	main endp
+end
